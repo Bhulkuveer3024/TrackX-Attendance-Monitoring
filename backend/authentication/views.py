@@ -93,6 +93,7 @@ def logout(request):
             status=status.HTTP_400_BAD_REQUEST
         )
 
+# Get current user endpoint returns the details of the currently authenticated user.
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_current_user(request):
