@@ -12,12 +12,15 @@ class User(AbstractUser):
     failed_login_attempts = models.IntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
 
-    
+# The email field is set as the unique identifier for authentication, replacing the default username field.
+    email = models.EmailField(unique=True)
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
     def __str__(self):
         return f"{self.email} ({self.role})"
 
 # Student model representing a student profile linked to the User model via a one-to-one relationship.
-# It includes fields for student ID, full name, and phone number. 
 class Student(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     student_id = models.CharField(max_length=20, unique=True)
@@ -29,7 +32,6 @@ class Student(models.Model):
 
 
 # Lecturer model representing a lecturer profile linked to the User model via a one-to-one relationship.
-# It includes fields for lecturer ID, full name, and department.
 class Lecturer(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     lecturer_id = models.CharField(max_length=20, unique=True)
