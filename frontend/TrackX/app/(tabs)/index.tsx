@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 import { loginUser } from '.././../services/api';
+import { registerForPushNotifications, savePushToken } from '../../services/notifications';
 
 export default function LoginScreen() {
     const [email, setEmail] = useState('');
@@ -28,6 +29,12 @@ export default function LoginScreen() {
         setLoading(true);
         try {
             const data = await loginUser(email, password);
+
+            // Register for push notifications and save the token
+            const token = await registerForPushNotifications();
+            await savePushToken(token);
+              
+              
             
             // Routing to correct dashboard based on user role
             if (data.role === 'student') {

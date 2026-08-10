@@ -99,3 +99,22 @@ def logout(request):
 def get_current_user(request):
     serializer = UserSerializer(request.user)
     return Response(serializer.data)
+
+#Saving token to the particular user in the database for push notifications
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def save_push_token(request):
+    # Get token from request body
+    token = request.data.get('token')
+    
+    if not token:
+        return Response(
+            {'error': 'Token is required'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    # Save token against authenticated user
+    request.user.push_token = token
+    request.user.save()
+    
+    return Response({'message': 'Push token saved successfully'})

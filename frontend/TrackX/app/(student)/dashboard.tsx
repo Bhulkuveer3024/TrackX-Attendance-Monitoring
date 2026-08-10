@@ -125,7 +125,6 @@ export default function StudentDashboard() {
 
             {/* Quick Actions */}
             <View style={styles.card}>
-                <Text style={styles.cardTitle}>Quick Actions</Text>
                 <TouchableOpacity
                     style={styles.actionButton}
                     onPress={() => router.push('/(student)/qr')}

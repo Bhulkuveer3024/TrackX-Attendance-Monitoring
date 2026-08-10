@@ -11,6 +11,7 @@ class User(AbstractUser):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES)
     failed_login_attempts = models.IntegerField(default=0)
     lockout_until = models.DateTimeField(null=True, blank=True)
+    push_token = models.CharField(max_length=200, null=True, blank=True)
 
 # The email field is set as the unique identifier for authentication, replacing the default username field.
     email = models.EmailField(unique=True)
