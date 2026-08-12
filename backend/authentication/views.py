@@ -19,7 +19,6 @@ def login(request):
     if serializer.is_valid():
         email = serializer.validated_data['email']
         password = serializer.validated_data['password']
-
         # Check if the user exists in the database
         try:
             user = User.objects.get(email=email)

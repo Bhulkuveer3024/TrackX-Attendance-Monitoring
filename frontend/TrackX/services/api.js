@@ -24,7 +24,6 @@ api.interceptors.request.use(
 // Auth functions
 export const loginUser = async (email, password) => {
     const response = await api.post('/auth/login/', { email, password });
-    // Save tokens to device storage after successful login
     await AsyncStorage.setItem('access_token', response.data.access);
     await AsyncStorage.setItem('refresh_token', response.data.refresh);
     await AsyncStorage.setItem('user_role', response.data.role);
