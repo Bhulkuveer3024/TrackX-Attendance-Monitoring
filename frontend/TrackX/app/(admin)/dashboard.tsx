@@ -23,6 +23,7 @@ export default function AdminDashboard() {
   const [checkinTime, setCheckinTime] = useState("");
   const [checkoutTime, setCheckoutTime] = useState("");
   const [notes, setNotes] = useState("");
+  const [visibleCount, setVisibleCount] = useState(5);
 
   useEffect(() => {
     fetchStudents();
@@ -139,7 +140,7 @@ export default function AdminDashboard() {
       {/* Student Records */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Student Records</Text>
-        {students.map((student, index) => (
+        {students.slice(0, visibleCount).map((student, index) => (
           <View key={index} style={styles.studentRow}>
             <View style={styles.studentInfo}>
               <Text style={styles.studentName}>{student.student_name}</Text>
@@ -170,6 +171,16 @@ export default function AdminDashboard() {
             </View>
           </View>
         ))}
+        {visibleCount < students.length && (
+          <TouchableOpacity
+            style={styles.viewMoreButton}
+            onPress={() => setVisibleCount((prev) => prev + 5)}
+          >
+            <Text style={styles.viewMoreText}>
+              View More
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Password Reset Modal */}
@@ -393,4 +404,16 @@ const styles = StyleSheet.create({
     color: "#999",
     fontSize: 14,
   },
+  viewMoreButton: {
+    padding: 12,
+    alignItems: 'center',
+    marginTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: '#2A2A3E',
+},
+viewMoreText: {
+    color: '#2196F3',
+    fontSize: 14,
+    fontWeight: '500',
+},
 });
