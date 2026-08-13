@@ -40,9 +40,9 @@ def all_student_records(request):
         if total_hours >= 20:
             attendance_status = 'compliant'
         elif total_hours >= 16:
-            attendance_status = 'at-risk'
+            attendance_status = 'at_risk'
         else:
-            attendance_status = 'non-compliant'     
+            attendance_status = 'non_compliant'     
 
 
         if status_filter and attendance_status != status_filter:
@@ -52,6 +52,7 @@ def all_student_records(request):
              'student_id' : student.student_id,
              'student_name' : student.full_name,
              'total_hours' : round(total_hours, 2),
+             'email': student.user.email,
              'status' : attendance_status,
         })
 
