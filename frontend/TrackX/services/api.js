@@ -21,6 +21,50 @@ api.interceptors.request.use(
     (error) => Promise.reject(error)
 );
 
+// Response interceptor - automatically refresh expired tokens
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        
+        if (error.response?.status === 401 && !originalRequest._retry) {
+            originalRequest._retry = true;
+            
+            try {
+                const refreshToken = await AsyncStorage.getItem('refresh_token');
+                
+                if (!refreshToken) {
+                    // No refresh token - force logout
+                    await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user_role']);
+                    return Promise.reject(error);
+                }
+                
+                // Get new access token using refresh token
+                const response = await axios.post(
+                    `${BASE_URL}/auth/refresh/`,
+                    { refresh: refreshToken }
+                );
+                
+                const newAccessToken = response.data.access;
+                
+                // Save new access token
+                await AsyncStorage.setItem('access_token', newAccessToken);
+                
+                // Retry original request with new token
+                originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+                return api(originalRequest);
+                
+            } catch (refreshError) {
+                // Refresh failed - force logout
+                await AsyncStorage.multiRemove(['access_token', 'refresh_token', 'user_role']);
+                return Promise.reject(refreshError);
+            }
+        }
+        
+        return Promise.reject(error);
+    }
+);
+
 // Auth functions
 export const loginUser = async (email, password) => {
     const response = await api.post('/auth/login/', { email, password });

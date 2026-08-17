@@ -6,4 +6,5 @@ urlpatterns = [
     path('override/', views.override_attendance, name='override_attendance'),
     path('summary/', views.attendance_summary, name='attendance_summary'),
     path('reset-password/', views.reset_password, name='reset_password'),
+    path('missed-checkouts/', views.missed_checkouts, name='missed_checkouts'),
 ]

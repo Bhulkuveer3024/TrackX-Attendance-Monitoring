@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [checkoutTime, setCheckoutTime] = useState("");
   const [notes, setNotes] = useState("");
   const [visibleCount, setVisibleCount] = useState(5);
+  const [missedCheckouts, setMissedCheckouts] = useState([]);
 
   useEffect(() => {
     fetchStudents();
@@ -31,8 +32,12 @@ export default function AdminDashboard() {
 
   const fetchStudents = async () => {
     try {
-      const response = await api.get("/admin/students/");
-      setStudents(response.data.students);
+      const [studentsRes, missedRes] = await Promise.all([
+        api.get("/admin/students/"),
+        api.get("/admin/missed-checkouts/"),
+      ]);
+      setStudents(studentsRes.data.students);
+      setMissedCheckouts(missedRes.data.missed || []);
     } catch (error) {
       Alert.alert("Error", "Failed to load student records");
     } finally {
@@ -137,6 +142,34 @@ export default function AdminDashboard() {
         </View>
       </View>
 
+      {/* Missed Checkouts */}
+      {missedCheckouts.length > 0 && (
+        <View style={styles.alertCard}>
+          <Text style={styles.alertTitle}>
+            Missed Checkouts ({missedCheckouts.length})
+          </Text>
+          {missedCheckouts.map((item, index) => (
+            <View key={index} style={styles.alertRow}>
+              <View style={styles.listInfo}>
+                <Text style={styles.listName}>{item.student_name}</Text>
+                <Text style={styles.listSub}>
+                  Checked in: {item.checkin_time.substring(11, 16)}
+                </Text>
+              </View>
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={() => {
+                  setSelectedStudent(item);
+                  setModalVisible(true);
+                }}
+              >
+                <Text style={styles.resetButtonText}>Override</Text>
+              </TouchableOpacity>
+            </View>
+          ))}
+        </View>
+      )}
+
       {/* Student Records */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Student Records</Text>
@@ -176,9 +209,7 @@ export default function AdminDashboard() {
             style={styles.viewMoreButton}
             onPress={() => setVisibleCount((prev) => prev + 5)}
           >
-            <Text style={styles.viewMoreText}>
-              View More
-            </Text>
+            <Text style={styles.viewMoreText}>View More</Text>
           </TouchableOpacity>
         )}
       </View>
@@ -406,14 +437,36 @@ const styles = StyleSheet.create({
   },
   viewMoreButton: {
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#2A2A3E',
-},
-viewMoreText: {
-    color: '#2196F3',
+    borderTopColor: "#2A2A3E",
+  },
+  viewMoreText: {
+    color: "#2196F3",
     fontSize: 14,
-    fontWeight: '500',
-},
+    fontWeight: "500",
+  },
+  alertCard: {
+    backgroundColor: "#2A1A1A",
+    margin: 15,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#F44336",
+  },
+  alertTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#F44336",
+    marginBottom: 15,
+  },
+  alertRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: "#3A2A2A",
+  },
 });

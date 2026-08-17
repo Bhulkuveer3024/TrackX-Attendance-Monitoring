@@ -17,52 +17,55 @@ def is_admin(user):
 def all_student_records(request):
     if not is_admin(request.user):
         return Response(
-            {'error': 'Unauthorized access'}, 
+            {'error': 'Admin access required'},
             status=status.HTTP_403_FORBIDDEN
-            )
-
-
+        )
+    
     status_filter = request.query_params.get('status', None)
-
+    
     today = date.today()
     week_start = today - timedelta(days=today.weekday())
-    students = Student.objects.all()
-    records =[]
-
+    
+    from django.db.models import Sum, Q
+    
+    # Single query - get all students with their weekly hours
+    students = Student.objects.annotate(
+        weekly_hours=Sum(
+            'campuscheckin__total_hours',
+            filter=Q(
+                campuscheckin__date__gte=week_start,
+                campuscheckin__date__lte=today
+            )
+        )
+    ).select_related('user')
+    
+    records = []
     for student in students:
-        weekly_checkins = CampusCheckin.objects.filter(
-        student=student,
-        date__gte = week_start,
-        date__lte = today
-    )
-
-        total_hours = sum(float(r.total_hours) for r in weekly_checkins)
+        total_hours = float(student.weekly_hours or 0)
+        
         if total_hours >= 20:
             attendance_status = 'compliant'
         elif total_hours >= 16:
             attendance_status = 'at_risk'
         else:
-            attendance_status = 'non_compliant'     
-
-
+            attendance_status = 'non_compliant'
+        
         if status_filter and attendance_status != status_filter:
-              continue
-
+            continue
+        
         records.append({
-             'student_id' : student.student_id,
-             'student_name' : student.full_name,
-             'total_hours' : round(total_hours, 2),
-             'email': student.user.email,
-             'status' : attendance_status,
+            'student_id': student.student_id,
+            'student_name': student.full_name,
+            'email': student.user.email,
+            'total_hours': round(total_hours, 2),
+            'status': attendance_status,
         })
-
+    
     return Response({
-         'week_starting' : str(week_start),
-         'total_students' : len(records),
-         'students' : records
-    })    
-
-
+        'week_starting': str(week_start),
+        'total_students': len(records),
+        'students': records
+    })
 # Overriding attendance records
 @api_view(['PUT'])
 @permission_classes([IsAuthenticated])
@@ -215,3 +218,48 @@ def reset_password(request):
             status=status.HTTP_404_NOT_FOUND
         )
 
+# Missed checkout handling
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def missed_checkouts(request):
+    if not is_admin(request.user):
+        return Response(
+            {'error': 'Admin access required'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+    
+    from datetime import datetime
+    import pytz
+    
+    nzst = pytz.timezone('Pacific/Auckland')
+    now = datetime.now(nzst)
+    today = now.date()
+    cutoff_hour = 19  # 7 PM NZST
+    
+    # Only flag after 7PM
+    if now.hour < cutoff_hour:
+        return Response({
+            'message': 'Missed checkout detection runs after 7PM NZST',
+            'missed': []
+        })
+    
+    # Find students checked in today but no checkout
+    missed = CampusCheckin.objects.filter(
+        date=today,
+        checkin_time__isnull=False,
+        checkout_time__isnull=True
+    ).select_related('student')
+    
+    missed_data = []
+    for record in missed:
+        missed_data.append({
+            'student_id': record.student.student_id,
+            'student_name': record.student.full_name,
+            'checkin_time': str(record.checkin_time),
+            'date': str(record.date)
+        })
+    
+    return Response({
+        'total_missed': len(missed_data),
+        'missed': missed_data
+    })

@@ -32,8 +32,8 @@ TrackX-Attendance-Monitoring/
 
 ## Prerequisites
 
-- Python 3.12+
-- Node.js 18+
+- Python 3.12.2+
+- Node.js 22.15.0+
 - Expo CLI
 - PostgreSQL database (Railway recommended)
 
