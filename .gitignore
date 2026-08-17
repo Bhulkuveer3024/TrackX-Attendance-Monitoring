@@ -17,6 +17,7 @@ staticfiles/
 
 # Environment variables
 .env
+backend/ .env
 *.env
 
 # VS Code
