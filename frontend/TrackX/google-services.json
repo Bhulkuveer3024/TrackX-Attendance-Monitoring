@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "576031141292",
+    "project_id": "trackx-fcdb4",
+    "storage_bucket": "trackx-fcdb4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:576031141292:android:6beae31a267e90844bde09",
+        "android_client_info": {
+          "package_name": "com.veerpatel324.trackx"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA835GzN4UCXO-fMDryNuSduNck8RedCck"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
