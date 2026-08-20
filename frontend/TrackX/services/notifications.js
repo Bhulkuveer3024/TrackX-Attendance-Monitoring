@@ -30,7 +30,6 @@ export async function registerForPushNotifications() {
 
     // Get Expo push token
     const token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push token:', token);
 
     // Android requires notification channel
     if (Platform.OS === 'android') {
@@ -49,7 +48,6 @@ export async function savePushToken(token) {
     if (!token) return;
     try {
         await api.post('/auth/push-token/', { token });
-        console.log('Push token saved successfully');
     } catch (error) {
         console.log('Failed to save push token:', error);
     }

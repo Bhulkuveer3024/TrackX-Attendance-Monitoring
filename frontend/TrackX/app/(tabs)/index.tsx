@@ -31,7 +31,6 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       const data = await loginUser(email, password);
-      console.log("Login successful:", data.role);
 
       try {
         const token = await registerForPushNotifications();

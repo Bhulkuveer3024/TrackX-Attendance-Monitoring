@@ -42,16 +42,20 @@ def daily_checkin_list(request):
     checkins = CampusCheckin.objects.filter(date=target_date) . select_related('student', 'student__user')
 
     # Build response data
+    import pytz
+    nzst = pytz.timezone('Pacific/Auckland')
+
     checkin_data = []
     for checkin in checkins:
-        checkin_data.append ({
-            'student_id': checkin.student.id,
-            'student_name': checkin.student.user.get_full_name(),
-            'checkin_time': str(checkin.checkin_time),
-            'checkout_time': str(checkin.checkout_time) if checkin.checkout_time else None,
-            'total_hours': checkin.total_hours,
-            'photo_url': checkin.photo.url if checkin.photo else None,
-        })
+        checkin_time_nzst = checkin.checkin_time.astimezone(nzst).strftime('%H:%M') if checkin.checkin_time else None
+        checkin_data.append({
+             'student_id': checkin.student.student_id,
+             'student_name': checkin.student.full_name,
+             'checkin_time': checkin_time_nzst,
+             'checkout_time': str(checkin.checkout_time) if checkin.checkout_time else None,
+             'total_hours': checkin.total_hours,
+             'photo_url': checkin.photo_url.url if checkin.photo_url else None,
+          })
 
     return Response({
         'date': str(target_date),
