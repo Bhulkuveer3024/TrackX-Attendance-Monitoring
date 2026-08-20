@@ -94,6 +94,14 @@ export default function AdminDashboard() {
     return "Non Compliant";
   };
 
+  const handleAttendanceSummary = () => {
+    router.push("/(admin)/student-list");
+  };
+
+  const handleWarningReport = () => {
+    router.push('/(admin)/warning-report');
+};
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -140,6 +148,28 @@ export default function AdminDashboard() {
             <Text style={styles.statLabel}>Non Compliant</Text>
           </View>
         </View>
+      </View>
+
+      {/* Reports generation */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Reports</Text>
+        <TouchableOpacity
+          style={styles.reportButton}
+          onPress={handleAttendanceSummary}
+        >
+          <Text style={styles.reportButtonText}>
+            Generate Attendance Summary
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.reportButton,
+            { backgroundColor: "#FF9800", marginTop: 10 },
+          ]}
+          onPress={handleWarningReport}
+        >
+          <Text style={styles.reportButtonText}>Generate Warning Report</Text>
+        </TouchableOpacity>
       </View>
 
       {/* Missed Checkouts */}
@@ -468,5 +498,16 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#3A2A2A",
+  },
+  reportButton: {
+    backgroundColor: "#2196F3",
+    borderRadius: 8,
+    padding: 15,
+    alignItems: "center",
+  },
+  reportButtonText: {
+    color: "#fff",
+    fontSize: 15,
+    fontWeight: "bold",
   },
 });
