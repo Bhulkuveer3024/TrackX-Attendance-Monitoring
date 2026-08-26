@@ -2,11 +2,14 @@ from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+import csv 
+import io
 from django.utils import timezone
 from datetime import date
 from authentication.models import Lecturer, Student
 from attendance.models import CampusCheckin
 from attendance.serializers import CampusCheckinSerializer
+
 
 # Helper function to check if user is a lecturer
 def is_lecturer(user):
@@ -107,3 +110,117 @@ def student_attendance_overview(request):
         'total_students': len(overview),
         'students': overview
     })      
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def import_teams_csv(request):
+    lecturer = is_lecturer(request.user)
+    if not lecturer:
+        return Response(
+            {'error': 'Lecturer profile not found'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    if 'file' not in request.FILES:
+        return Response(
+            {'error': 'No file uploaded'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    uploaded_file = request.FILES['file']
+    today = date.today()
+
+    try:
+        raw = uploaded_file.read()
+        content = raw.decode('utf-8-sig')
+    except Exception as e:
+        return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+    # Parse CSV using proper reader to handle quoted fields
+    teams_students = set()
+    reader = csv.reader(io.StringIO(content))
+    in_participants_section = False
+
+    for row in reader:
+        if row and row[0].strip() == '2. Participants':
+            in_participants_section = True
+            continue
+        
+        if in_participants_section and row and row[0].strip().startswith('3.'):
+            break
+        
+        if row and row[0].strip() == 'Name':
+            continue
+        
+        if in_participants_section and len(row) >= 5:
+            email = row[4].strip()
+            if '@tertiary.ac.nz' in email:
+                student_id = email.split('@')[0]
+                teams_students.add(student_id)
+
+    if not teams_students:
+        return Response(
+            {'error': 'No valid institutional emails found in file'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # Get today's campus check-ins
+    from attendance.models import CampusCheckin
+    from authentication.models import Student
+
+    campus_checkins = CampusCheckin.objects.filter(
+        date=today
+    ).select_related('student')
+
+    campus_students = {
+        checkin.student.student_id: checkin
+        for checkin in campus_checkins
+    }
+
+    all_students = Student.objects.all()
+
+    # Apply cross-referencing logic
+    results = []
+
+    for student in all_students:
+        sid = student.student_id
+        on_campus = sid in campus_students
+        in_teams = sid in teams_students
+
+        if on_campus and in_teams:
+            cross_status = 'present'
+            action = 'No action required'
+        elif on_campus and not in_teams:
+            cross_status = 'discrepancy_campus_only'
+            action = 'Student on campus but absent from class'
+        elif not on_campus and in_teams:
+            cross_status = 'discrepancy_teams_only'
+            action = 'Student in Teams but not on campus - does not satisfy attendance requirement'
+        else:
+            cross_status = 'absent'
+            action = 'Student absent from both campus and class'
+
+        results.append({
+            'student_id': sid,
+            'student_name': student.full_name,
+            'on_campus': on_campus,
+            'in_teams': in_teams,
+            'status': cross_status,
+            'action': action
+        })
+
+    summary = {
+        'present': len([r for r in results if r['status'] == 'present']),
+        'discrepancy_campus_only': len([r for r in results if r['status'] == 'discrepancy_campus_only']),
+        'discrepancy_teams_only': len([r for r in results if r['status'] == 'discrepancy_teams_only']),
+        'absent': len([r for r in results if r['status'] == 'absent']),
+        'total': len(results)
+    }
+
+    return Response({
+        'date': str(today),
+        'teams_students_found': len(teams_students),
+        'summary': summary,
+        'results': results
+    })
