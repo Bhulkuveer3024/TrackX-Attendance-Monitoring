@@ -1,9 +1,9 @@
+import csv 
+import io
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-import csv 
-import io
 from django.utils import timezone
 from datetime import date
 from authentication.models import Lecturer, Student
@@ -132,8 +132,13 @@ def import_teams_csv(request):
     today = date.today()
 
     try:
-        raw = uploaded_file.read()
-        content = raw.decode('utf-8-sig')
+       raw = uploaded_file.read()
+       content = raw.decode('utf-8-sig')
+    except UnicodeDecodeError:
+         try:
+            content = raw.decode('utf-16')
+         except UnicodeDecodeError:
+            content = raw.decode('utf-8', errors='ignore')
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
