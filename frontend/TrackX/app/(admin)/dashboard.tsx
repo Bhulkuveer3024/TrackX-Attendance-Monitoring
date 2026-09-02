@@ -25,6 +25,9 @@ export default function AdminDashboard() {
   const [notes, setNotes] = useState("");
   const [visibleCount, setVisibleCount] = useState(5);
   const [missedCheckouts, setMissedCheckouts] = useState([]);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
 
   useEffect(() => {
     fetchStudents();
@@ -99,8 +102,8 @@ export default function AdminDashboard() {
   };
 
   const handleWarningReport = () => {
-    router.push('/(admin)/warning-report');
-};
+    router.push("/(admin)/warning-report");
+  };
 
   if (loading) {
     return (
@@ -109,6 +112,24 @@ export default function AdminDashboard() {
       </View>
     );
   }
+  const handleResetPassword = async () => {
+    if (!resetEmail || !resetPassword) {
+      Alert.alert("Error", "Please enter email and new password");
+      return;
+    }
+    try {
+      await api.post("/admin/reset-password/", {
+        email: resetEmail,
+        new_password: resetPassword,
+      });
+      Alert.alert("Success", "Password reset successfully");
+      setResetModalVisible(false);
+      setResetEmail("");
+      setResetPassword("");
+    } catch (error) {
+      Alert.alert("Error", "Failed to reset password. Check email is correct.");
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -171,6 +192,59 @@ export default function AdminDashboard() {
           <Text style={styles.reportButtonText}>Generate Warning Report</Text>
         </TouchableOpacity>
       </View>
+
+      {/* Password Reset */}
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Account Management</Text>
+        <TouchableOpacity
+          style={[styles.reportButton, { backgroundColor: "#9C27B0" }]}
+          onPress={() => setResetModalVisible(true)}
+        >
+          <Text style={styles.reportButtonText}>Reset Student Password</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Password Reset Modal */}
+      <Modal visible={resetModalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Reset Password</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Student email"
+              placeholderTextColor="#999"
+              value={resetEmail}
+              onChangeText={setResetEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={styles.modalInput}
+              placeholder="New password"
+              placeholderTextColor="#999"
+              value={resetPassword}
+              onChangeText={setResetPassword}
+              secureTextEntry
+            />
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={handleResetPassword}
+            >
+              <Text style={styles.modalButtonText}>Reset Password</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => {
+                setResetModalVisible(false);
+                setResetEmail("");
+                setResetPassword("");
+              }}
+            >
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
       {/* Missed Checkouts */}
       {missedCheckouts.length > 0 && (

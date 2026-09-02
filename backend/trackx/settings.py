@@ -13,7 +13,7 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-import dj_database_url
+
 
 
 
@@ -23,10 +23,6 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Load environment variables from .env
 load_dotenv(BASE_DIR / '.env')
 
-
-
-db_config = dj_database_url.parse(os.environ.get('DATABASE_URL'))
-db_config['PORT'] = '5432'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
