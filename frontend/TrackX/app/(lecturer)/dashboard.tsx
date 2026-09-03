@@ -50,36 +50,35 @@ export default function LecturerDashboard() {
 
   const handleImportCSV = async () => {
     try {
-        const result = await DocumentPicker.getDocumentAsync({
-            type: ['text/csv', 'text/comma-separated-values', '*/*'],
-            copyToCacheDirectory: true
-        });
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ["text/csv", "text/comma-separated-values", "*/*"],
+        copyToCacheDirectory: true,
+      });
 
-        if (result.canceled) return;
+      if (result.canceled) return;
 
-        const file = result.assets[0];
-        setImporting(true);
+      const file = result.assets[0];
+      setImporting(true);
 
-        const formData = new FormData();
-        formData.append('file', {
-            uri: file.uri,
-            name: file.name,
-            type: file.mimeType || 'text/csv'
-        });
+      const formData = new FormData();
+      formData.append("file", {
+        uri: file.uri,
+        name: file.name,
+        type: file.mimeType || "text/csv",
+      });
 
-        const response = await api.post('/lecturer/import-csv/', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+      const response = await api.post("/lecturer/import-csv/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
 
-        setImportResults(response.data);
-
+      setImportResults(response.data);
     } catch (error) {
-        Alert.alert('Error', 'Failed to import CSV file');
+      Alert.alert("Error", "Failed to import CSV file");
     } finally {
-        setImporting(false);
+      setImporting(false);
     }
-};
-  
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
@@ -103,62 +102,75 @@ export default function LecturerDashboard() {
       </View>
 
       {importResults && (
-    <View style={styles.card}>
-        <Text style={styles.cardTitle}>Import Results</Text>
-        
-        {/* Summary counts */}
-        <View style={styles.summaryRow}>
-            <View style={[styles.summaryBadge, { backgroundColor: '#4CAF50' }]}>
-                <Text style={styles.summaryCount}>{importResults.summary.present}</Text>
-                <Text style={styles.summaryLabel}>Present</Text>
-            </View>
-            <View style={[styles.summaryBadge, { backgroundColor: '#FF9800' }]}>
-                <Text style={styles.summaryCount}>
-                    {importResults.summary.discrepancy_campus_only + importResults.summary.discrepancy_teams_only}
-                </Text>
-                <Text style={styles.summaryLabel}>Discrepancy</Text>
-            </View>
-            <View style={[styles.summaryBadge, { backgroundColor: '#F44336' }]}>
-                <Text style={styles.summaryCount}>{importResults.summary.absent}</Text>
-                <Text style={styles.summaryLabel}>Absent</Text>
-            </View>
-        </View>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Import Results</Text>
 
-        {/* Actionable students list */}
-        <Text style={styles.sectionTitle}>Requires Attention</Text>
-        {importResults.results
-            .filter(r => r.status !== 'present')
+          {/* Summary counts */}
+          <View style={styles.summaryRow}>
+            <View style={[styles.summaryBadge, { backgroundColor: "#4CAF50" }]}>
+              <Text style={styles.summaryCount}>
+                {importResults.summary.present}
+              </Text>
+              <Text style={styles.summaryLabel}>Present</Text>
+            </View>
+            <View style={[styles.summaryBadge, { backgroundColor: "#FF9800" }]}>
+              <Text style={styles.summaryCount}>
+                {importResults.summary.discrepancy_campus_only +
+                  importResults.summary.discrepancy_teams_only}
+              </Text>
+              <Text style={styles.summaryLabel}>Discrepancy</Text>
+            </View>
+            <View style={[styles.summaryBadge, { backgroundColor: "#F44336" }]}>
+              <Text style={styles.summaryCount}>
+                {importResults.summary.absent}
+              </Text>
+              <Text style={styles.summaryLabel}>Absent</Text>
+            </View>
+          </View>
+
+          {/* Actionable students list */}
+          <Text style={styles.sectionTitle}>Requires Attention</Text>
+          {importResults.results
+            .filter((r) => r.status !== "present")
             .slice(0, visibleCount)
             .map((student, index) => (
-                <View key={index} style={styles.resultRow}>
-                    <View style={styles.listInfo}>
-                        <Text style={styles.listName}>{student.student_name}</Text>
-                        <Text style={styles.listSub}>{student.action}</Text>
-                    </View>
-                    <View style={[
-                        styles.statusBadge,
-                        { backgroundColor: student.status === 'absent' ? '#F44336' : '#FF9800' }
-                    ]}>
-                        <Text style={styles.statusText}>
-                            {student.status === 'absent' ? 'Absent' : 'Discrepancy'}
-                        </Text>
-                    </View>
+              <View key={index} style={styles.resultRow}>
+                <View style={styles.listInfo}>
+                  <Text style={styles.listName}>{student.student_name}</Text>
+                  <Text style={styles.listSub}>{student.action}</Text>
                 </View>
-            ))
-        }
+                <View
+                  style={[
+                    styles.statusBadge,
+                    {
+                      backgroundColor:
+                        student.status === "absent" ? "#F44336" : "#FF9800",
+                    },
+                  ]}
+                >
+                  <Text style={styles.statusText}>
+                    {student.status === "absent" ? "Absent" : "Discrepancy"}
+                  </Text>
+                </View>
+              </View>
+            ))}
 
-        {importResults.results.filter(r => r.status !== 'present').length > visibleCount && (
+          {importResults.results.filter((r) => r.status !== "present").length >
+            visibleCount && (
             <TouchableOpacity
-                style={styles.viewMoreButton}
-                onPress={() => setVisibleCount(prev => prev + 5)}
+              style={styles.viewMoreButton}
+              onPress={() => setVisibleCount((prev) => prev + 5)}
             >
-                <Text style={styles.viewMoreText}>
-                    View More ({importResults.results.filter(r => r.status !== 'present').length - visibleCount} remaining)
-                </Text>
+              <Text style={styles.viewMoreText}>
+                View More (
+                {importResults.results.filter((r) => r.status !== "present")
+                  .length - visibleCount}{" "}
+                remaining)
+              </Text>
             </TouchableOpacity>
-        )}
-    </View>
-)}
+          )}
+        </View>
+      )}
 
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Campus Scanner</Text>
@@ -186,7 +198,9 @@ export default function LecturerDashboard() {
               </View>
               <View style={styles.listInfo}>
                 <Text style={styles.listName}>{checkin.student_name}</Text>
-                <Text style={styles.listSub}>{checkin.checkin_time}</Text>
+                <Text style={styles.listSub}>
+                  {checkin.checkin_date} — {checkin.checkin_time}
+                </Text>
               </View>
               <Text style={styles.listHours}>{checkin.total_hours} hrs</Text>
             </View>
@@ -308,52 +322,52 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 15,
     gap: 10,
-},
-summaryBadge: {
+  },
+  summaryBadge: {
     flex: 1,
     borderRadius: 10,
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 8,
     paddingVertical: 4,
-},
-summaryCount: {
-    color: '#fff',
+  },
+  summaryCount: {
+    color: "#fff",
     fontSize: 22,
-    fontWeight: 'bold',
-},
-summaryLabel: {
-    color: '#fff',
+    fontWeight: "bold",
+  },
+  summaryLabel: {
+    color: "#fff",
     fontSize: 11,
     marginTop: 2,
-},
-sectionTitle: {
-    color: '#999',
+  },
+  sectionTitle: {
+    color: "#999",
     fontSize: 13,
     marginBottom: 10,
-},
-resultRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+  },
+  resultRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#2A2A3E',
-},
-viewMoreButton: {
+    borderBottomColor: "#2A2A3E",
+  },
+  viewMoreButton: {
     padding: 12,
-    alignItems: 'center',
+    alignItems: "center",
     marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#2A2A3E',
-},
-viewMoreText: {
-    color: '#2196F3',
+    borderTopColor: "#2A2A3E",
+  },
+  viewMoreText: {
+    color: "#2196F3",
     fontSize: 14,
-    fontWeight: '500',
-},
+    fontWeight: "500",
+  },
 });

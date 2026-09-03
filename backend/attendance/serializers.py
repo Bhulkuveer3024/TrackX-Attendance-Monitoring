@@ -1,17 +1,22 @@
+import pytz
 from rest_framework import serializers
 from .models import CampusCheckin
-from authentication.models import Student
-import pytz
-from datetime import datetime
 
-# Helper function to convert UTC datetime to NZST for display
-def to_nzst(dt):
+# Helper functions to convert UTC datetime to NZST for display
+def to_nzst_date(dt):
     if dt is None:
         return None
     nzst = pytz.timezone('Pacific/Auckland')
-    return dt.astimezone(nzst).strftime('%Y-%m-%d %H:%M:%S')
+    return dt.astimezone(nzst).strftime('%d %B %Y')
 
-# CampusCheckinSerializer - serializes the CampusCheckin model, including student name and ID, check-in and check-out times, total hours, and photo URL.
+def to_nzst_time(dt):
+    if dt is None:
+        return None
+    nzst = pytz.timezone('Pacific/Auckland')
+    return dt.astimezone(nzst).strftime('%H:%M')
+
+# CampusCheckinSerializer - serializes the CampusCheckin model, including student name and ID, 
+# check-in and check-out times separated into date and time, total hours, and photo URL.
 class CampusCheckinSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(
         source='student.full_name',
@@ -21,15 +26,19 @@ class CampusCheckinSerializer(serializers.ModelSerializer):
         source='student.student_id',
         read_only=True
     )
-    # Custom fields to return times in NZST instead of UTC
+    # Separate date and time fields in NZST
+    checkin_date = serializers.SerializerMethodField()
     checkin_time_nzst = serializers.SerializerMethodField()
     checkout_time_nzst = serializers.SerializerMethodField()
     
+    def get_checkin_date(self, obj):
+        return to_nzst_date(obj.checkin_time)
+    
     def get_checkin_time_nzst(self, obj):
-        return to_nzst(obj.checkin_time)
+        return to_nzst_time(obj.checkin_time)
     
     def get_checkout_time_nzst(self, obj):
-        return to_nzst(obj.checkout_time)
+        return to_nzst_time(obj.checkout_time)
     
     class Meta:
         model = CampusCheckin
@@ -38,12 +47,14 @@ class CampusCheckinSerializer(serializers.ModelSerializer):
             'student_name',
             'student_id',
             'date',
+            'checkin_date',
             'checkin_time_nzst',
             'checkout_time_nzst',
             'total_hours',
             'photo_url'
         ]
         read_only_fields = ['total_hours']
+
 
 # CheckinRequestSerializer - validates incoming check-in requests from scanner device
 class CheckinRequestSerializer(serializers.Serializer):
