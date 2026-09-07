@@ -19,6 +19,7 @@ export default function LecturerDashboard() {
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState(null);
   const [visibleCount, setVisibleCount] = useState(5);
+  const [importHistory, setImportHistory] = useState([]);
 
   useEffect(() => {
     fetchdata();
@@ -26,8 +27,12 @@ export default function LecturerDashboard() {
 
   const fetchdata = async () => {
     try {
-      const response = await api.get("/lecturer/checkins/");
-      setCheckins(response.data.checkins);
+      const [checkinRes, historyRes] = await Promise.all([
+        api.get("/lecturer/checkins/"),
+        api.get("/lecturer/import-history/"),
+      ]);
+      setCheckins(checkinRes.data.checkins);
+      setImportHistory(historyRes.data.sessions);
     } catch (error) {
       Alert.alert("Error", "Failed to fetch data. Please try again later.");
     } finally {
@@ -72,6 +77,11 @@ export default function LecturerDashboard() {
       });
 
       setImportResults(response.data);
+
+      // Refresh history after successful import
+      const historyRes = await api.get("/lecturer/import-history/");
+      setImportHistory(historyRes.data.sessions);
+      
     } catch (error) {
       Alert.alert("Error", "Failed to import CSV file");
     } finally {
@@ -169,6 +179,35 @@ export default function LecturerDashboard() {
               </Text>
             </TouchableOpacity>
           )}
+        </View>
+      )}
+
+      {importHistory.length > 0 && (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Import History</Text>
+          {importHistory.map((session, index) => (
+            <View key={index} style={styles.historyRow}>
+              <View style={styles.listInfo}>
+                <Text style={styles.listName}>{session.import_date}</Text>
+                <Text style={styles.listSub}>
+                  {session.class_start_time} — {session.class_end_time}
+                </Text>
+              </View>
+              <View style={styles.historyStats}>
+                <Text style={[styles.historyCount, { color: "#4CAF50" }]}>
+                  {session.summary.present} ✓
+                </Text>
+                <Text style={[styles.historyCount, { color: "#FF9800" }]}>
+                  {session.summary.discrepancy_campus_only +
+                    session.summary.discrepancy_teams_only}{" "}
+                  ⚠
+                </Text>
+                <Text style={[styles.historyCount, { color: "#F44336" }]}>
+                  {session.summary.absent} ✗
+                </Text>
+              </View>
+            </View>
+          ))}
         </View>
       )}
 
@@ -369,5 +408,21 @@ const styles = StyleSheet.create({
     color: "#2196F3",
     fontSize: 14,
     fontWeight: "500",
+  },
+  historyRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#2A2A3E",
+  },
+  historyStats: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  historyCount: {
+    fontSize: 13,
+    fontWeight: "bold",
   },
 });

@@ -25,3 +25,33 @@ class CampusCheckin(models.Model):
     
     def __str__(self):
         return f"{self.student.full_name} - {self.date}"
+
+
+class TeamsImportSession(models.Model):
+    lecturer = models.ForeignKey('authentication.Lecturer', on_delete=models.CASCADE)
+    import_date = models.DateField()
+    class_start_time = models.TimeField(null=True, blank=True)
+    class_end_time = models.TimeField(null=True, blank=True)
+    teams_students_found = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-import_date']
+
+class TeamsImportResult(models.Model):
+    STATUS_CHOICES = [
+        ('present', 'Present'),
+        ('discrepancy_campus_only', 'Discrepancy - Campus Only'),
+        ('discrepancy_teams_only', 'Discrepancy - Teams Only'),
+        ('absent', 'Absent'),
+    ]
+    
+    session = models.ForeignKey(TeamsImportSession, on_delete=models.CASCADE, related_name='results')
+    student = models.ForeignKey('authentication.Student', on_delete=models.CASCADE)
+    status = models.CharField(max_length=30, choices=STATUS_CHOICES)
+    action = models.TextField()
+    on_campus = models.BooleanField(default=False)
+    in_teams = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['student__full_name']

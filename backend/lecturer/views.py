@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from django.utils import timezone
 from datetime import date
 from authentication.models import Lecturer, Student
-from attendance.models import CampusCheckin
+from attendance.models import CampusCheckin, TeamsImportResult
 from attendance.serializers import CampusCheckinSerializer
 
 
@@ -134,18 +134,45 @@ def import_teams_csv(request):
     uploaded_file = request.FILES['file']
     today = date.today()
 
+    # Read and decode file
     try:
-       raw = uploaded_file.read()
-       content = raw.decode('utf-8-sig')
+        raw = uploaded_file.read()
+        content = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
-         try:
+        try:
             content = raw.decode('utf-16')
-         except UnicodeDecodeError:
+        except UnicodeDecodeError:
             content = raw.decode('utf-8', errors='ignore')
     except Exception as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
-    # Parse CSV using proper reader to handle quoted fields
+    # Parse class start and end time from Summary section
+    from datetime import datetime as dt
+    class_start_time = None
+    class_end_time = None
+
+    reader_for_time = csv.reader(io.StringIO(content))
+    for row in reader_for_time:
+        if not row:
+            continue
+        if row[0].strip().startswith('2.'):
+            break
+        if row[0].strip() == 'Start time' and len(row) >= 2:
+            try:
+                start_str = row[1].strip().strip('"')
+                parsed = dt.strptime(start_str, '%m/%d/%y, %I:%M:%S %p')
+                class_start_time = parsed.time()
+            except Exception:
+                pass
+        if row[0].strip() == 'End time' and len(row) >= 2:
+            try:
+                end_str = row[1].strip().strip('"')
+                parsed = dt.strptime(end_str, '%m/%d/%y, %I:%M:%S %p')
+                class_end_time = parsed.time()
+            except Exception:
+                pass
+
+    # Parse participants section
     teams_students = set()
     reader = csv.reader(io.StringIO(content))
     in_participants_section = False
@@ -154,13 +181,13 @@ def import_teams_csv(request):
         if row and row[0].strip() == '2. Participants':
             in_participants_section = True
             continue
-        
+
         if in_participants_section and row and row[0].strip().startswith('3.'):
             break
-        
+
         if row and row[0].strip() == 'Name':
             continue
-        
+
         if in_participants_section and len(row) >= 5:
             email = row[4].strip()
             if '@tertiary.ac.nz' in email:
@@ -174,23 +201,42 @@ def import_teams_csv(request):
         )
 
     # Get today's campus check-ins
-    from attendance.models import CampusCheckin
+    from attendance.models import CampusCheckin, TeamsImportSession, TeamsImportResult
     from authentication.models import Student
+    import pytz
+
+    nzst = pytz.timezone('Pacific/Auckland')
 
     campus_checkins = CampusCheckin.objects.filter(
         date=today
     ).select_related('student')
 
-    campus_students = {
-        checkin.student.student_id: checkin
-        for checkin in campus_checkins
-    }
+    # Build campus students dict with time-aware check
+    campus_students = {}
+    for checkin in campus_checkins:
+        sid = checkin.student.student_id
+
+        # If class time is available, check if student was on campus during class
+        if class_start_time and class_end_time and checkin.checkin_time:
+            checkin_local = checkin.checkin_time.astimezone(nzst).time()
+            checkout_local = checkin.checkout_time.astimezone(nzst).time() if checkin.checkout_time else None
+
+            # Student was on campus during class if:
+            # They checked in before class ended AND checked out after class started (or still on campus)
+            was_during_class = (
+                checkin_local <= class_end_time and
+                (checkout_local is None or checkout_local >= class_start_time)
+            )
+            if was_during_class:
+                campus_students[sid] = checkin
+        else:
+            # No class time available use any check-in for today
+            campus_students[sid] = checkin
 
     all_students = Student.objects.all()
 
     # Apply cross-referencing logic
     results = []
-
     for student in all_students:
         sid = student.student_id
         on_campus = sid in campus_students
@@ -218,6 +264,35 @@ def import_teams_csv(request):
             'action': action
         })
 
+    # Save import session to database
+    session = TeamsImportSession.objects.create(
+        lecturer=lecturer,
+        import_date=today,
+        class_start_time=class_start_time,
+        class_end_time=class_end_time,
+        teams_students_found=len(teams_students)
+    )
+
+
+    # Save all results in one database query using bulk_create
+    student_map = {s.student_id: s for s in Student.objects.all()}
+    result_objects = []
+    for result in results:
+        student_obj = student_map.get(result['student_id'])
+        if student_obj:
+            result_objects.append(TeamsImportResult(
+                session=session,
+                student=student_obj,
+                status=result['status'],
+                action=result['action'],
+                on_campus=result['on_campus'],
+                in_teams=result['in_teams']
+                ))
+
+    TeamsImportResult.objects.bulk_create(result_objects)
+
+
+
     summary = {
         'present': len([r for r in results if r['status'] == 'present']),
         'discrepancy_campus_only': len([r for r in results if r['status'] == 'discrepancy_campus_only']),
@@ -228,7 +303,48 @@ def import_teams_csv(request):
 
     return Response({
         'date': str(today),
+        'class_start_time': str(class_start_time) if class_start_time else None,
+        'class_end_time': str(class_end_time) if class_end_time else None,
         'teams_students_found': len(teams_students),
         'summary': summary,
-        'results': results
+        'results': results,
+        'session_id': session.id
+    })
+
+# Endpoint for viewing historical import sessions
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def import_history(request):
+    lecturer = is_lecturer(request.user)
+    if not lecturer:
+        return Response(
+            {'error': 'Lecturer profile not found'},
+            status=status.HTTP_403_FORBIDDEN
+        )
+
+    from attendance.models import TeamsImportSession
+
+    sessions = TeamsImportSession.objects.filter(
+        lecturer=lecturer
+    ).order_by('-import_date')[:10]
+
+    history = []
+    for session in sessions:
+        history.append({
+            'session_id': session.id,
+            'import_date': str(session.import_date),
+            'class_start_time': str(session.class_start_time) if session.class_start_time else None,
+            'class_end_time': str(session.class_end_time) if session.class_end_time else None,
+            'teams_students_found': session.teams_students_found,
+            'summary': {
+                'present': session.results.filter(status='present').count(),
+                'discrepancy_campus_only': session.results.filter(status='discrepancy_campus_only').count(),
+                'discrepancy_teams_only': session.results.filter(status='discrepancy_teams_only').count(),
+                'absent': session.results.filter(status='absent').count(),
+            }
+        })
+
+    return Response({
+        'total_sessions': len(history),
+        'sessions': history
     })
