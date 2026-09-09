@@ -105,10 +105,17 @@ def override_attendance(request):
         )
         
         if checkin_time:
-              record.checkin_time = datetime.strptime(checkin_time, '%Y-%m-%d %H:%M:%S')
+           record.checkin_time = datetime.strptime(checkin_time, '%Y-%m-%d %H:%M:%S')
         if checkout_time:
-              record.checkout_time = datetime.strptime(checkout_time, '%Y-%m-%d %H:%M:%S')
-              record.calculate_hours()
+           parsed_checkout = datetime.strptime(checkout_time, '%Y-%m-%d %H:%M:%S')
+        # Validate checkout is after check-in
+           if record.checkin_time and parsed_checkout <= record.checkin_time:
+               return Response(
+                   {'error': 'Checkout time must be after check-in time'},
+                   status=status.HTTP_400_BAD_REQUEST
+              )
+           record.checkout_time = parsed_checkout
+           record.calculate_hours()
         
         record.save()
         
