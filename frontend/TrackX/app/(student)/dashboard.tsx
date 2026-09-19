@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import {
   getTodayAttendance,
   getWeeklyAttendance,
@@ -20,24 +20,31 @@ export default function StudentDashboard() {
   const [weeklyData, setWeeklyData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [today, weekly] = await Promise.all([
-        getTodayAttendance(),
-        getWeeklyAttendance(),
-      ]);
-      setTodayData(today);
-      setWeeklyData(weekly);
+        const [today, weekly] = await Promise.all([
+            getTodayAttendance(),
+            getWeeklyAttendance()
+        ]);
+        setTodayData(today);
+        setWeeklyData(weekly);
     } catch (error) {
-      Alert.alert("Error", "Failed to load attendance data");
+        Alert.alert('Error', 'Failed to load attendance data');
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  };
+}, []);
+
+useEffect(() => {
+    fetchData();
+}, [fetchData]);
+
+useFocusEffect(
+    useCallback(() => {
+        fetchData();
+        return () => {};
+    }, [fetchData])
+);
 
   const handleLogout = async () => {
     await logoutUser();

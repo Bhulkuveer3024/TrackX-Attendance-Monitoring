@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { logoutUser } from "../../services/api";
 import api from "../../services/api";
 import * as DocumentPicker from "expo-document-picker";
@@ -21,24 +21,31 @@ export default function LecturerDashboard() {
   const [visibleCount, setVisibleCount] = useState(5);
   const [importHistory, setImportHistory] = useState([]);
 
+
+  const fetchdata = useCallback(async () => {
+    try {
+        const [checkinRes, historyRes] = await Promise.all([
+            api.get('/lecturer/checkins/'),
+            api.get('/lecturer/import-history/')
+        ]);
+        setCheckins(checkinRes.data.checkins);
+        setImportHistory(historyRes.data.sessions);
+    } catch (error) {
+        Alert.alert('Error', 'Failed to fetch data. Please try again later.');
+    } finally {
+        setLoading(false);
+    }
+}, []);
   useEffect(() => {
     fetchdata();
   }, []);
 
-  const fetchdata = async () => {
-    try {
-      const [checkinRes, historyRes] = await Promise.all([
-        api.get("/lecturer/checkins/"),
-        api.get("/lecturer/import-history/"),
-      ]);
-      setCheckins(checkinRes.data.checkins);
-      setImportHistory(historyRes.data.sessions);
-    } catch (error) {
-      Alert.alert("Error", "Failed to fetch data. Please try again later.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  useFocusEffect(
+    useCallback(() => {
+      fetchdata();
+      return () => {};
+    }, [fetchdata]),
+  );
 
   const handleLogout = async () => {
     await logoutUser();
@@ -81,7 +88,6 @@ export default function LecturerDashboard() {
       // Refresh history after successful import
       const historyRes = await api.get("/lecturer/import-history/");
       setImportHistory(historyRes.data.sessions);
-      
     } catch (error) {
       Alert.alert("Error", "Failed to import CSV file");
     } finally {
